@@ -11,12 +11,14 @@ public class Main extends AbstractVerticle {
             r.response()
              .end("<h1>Hello from " +
                   "Vert.x 3 application</h1>")
-        ).listen(8080, result -> {
-            if (result.succeeded()) {
-                future.complete();
-            } else {
-                future.fail(result.cause());
-            }
-        });
+        ).listen(
+            config().getInteger("http.port", 8080),
+            result -> {
+                if (result.succeeded()) {
+                    future.complete();
+                } else {
+                    future.fail(result.cause());
+                }
+            });
     }
 }

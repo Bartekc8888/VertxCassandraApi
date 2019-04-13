@@ -1,39 +1,58 @@
 package com.politechnika;
 
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.concurrent.TimeUnit;
 
+import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-
+@Slf4j
 @ExtendWith(VertxExtension.class)
 class MainTest {
+    private static int port;
 
-    @BeforeEach
-    void setup(Vertx vertx, VertxTestContext testContext) {
-        vertx.deployVerticle(Main.class.getName(),
+    @BeforeAll
+    static void setup(Vertx vertx, VertxTestContext testContext) {
+        port = getRandomPort();
+        JsonObject jsonConfig = new JsonObject().put("http.port", port);
+        DeploymentOptions options = new DeploymentOptions()
+                .setConfig(jsonConfig);
+
+        vertx.deployVerticle(Main.class.getName(), options,
                              testContext.completing());
     }
 
-    @AfterEach
-    void tearDown(Vertx vertx, VertxTestContext testContext) {
+    @AfterAll
+    static void tearDown(Vertx vertx, VertxTestContext testContext) {
         vertx.close(testContext.completing());
+    }
+
+    private static int getRandomPort() {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            return socket.getLocalPort();
+        } catch (IOException e) {
+            log.error("Could not get random port.", e);
+
+            return 9096;
+        }
     }
 
     @Test
     void testMyApplication(Vertx vertx, VertxTestContext testContext) throws InterruptedException {
         WebClient webClient = WebClient.create(vertx);
 
-        webClient.get(8080, "localhost", "/").send(request -> {
+        webClient.get(port, "localhost", "/").send(request -> {
             if (request.succeeded()) {
                 Buffer body = request.result().body();
                 assertTrue(body.toString().contains("Hello"));
