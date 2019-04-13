@@ -28,9 +28,9 @@ public class Main extends AbstractVerticle {
         CassandraClientOptions options = new CassandraClientOptions()
                 .setPort(config().getInteger("cassandra.port", 9142))
                 .setKeyspace(config().getString("keyspace"))
-                .addContactPoint(config().getString("node1.address"))
-                .addContactPoint(config().getString("node2.address"))
-                .addContactPoint(config().getString("node3.address"));
+                .addContactPoint(config().getString("node1.address", ""))
+                .addContactPoint(config().getString("node2.address", ""))
+                .addContactPoint(config().getString("node3.address", ""));
 
         client = CassandraClient.createShared(vertx, options);
     }
