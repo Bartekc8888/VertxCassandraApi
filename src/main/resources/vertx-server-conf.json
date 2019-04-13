@@ -1,3 +1,5 @@
 {
-  "http.port" : 8082
+  "http.port" : 8082,
+  "cassandra.port" : 9142,
+  "keyspace" : "custom_keyspace"
 }
