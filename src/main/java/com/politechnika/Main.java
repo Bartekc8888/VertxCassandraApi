@@ -1,5 +1,7 @@
 package com.politechnika;
 
+import io.vertx.cassandra.CassandraClient;
+import io.vertx.cassandra.CassandraClientOptions;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.http.HttpServerResponse;
@@ -8,16 +10,29 @@ import io.vertx.ext.web.Router;
 
 public class Main extends AbstractVerticle {
     private MeasurementEndpointExecutor executor;
+    private CassandraClient client;
 
     @Override
     public void start(Future<Void> future) {
-        executor = new MeasurementEndpointExecutor();
+        initCassandraDbConnection();
+        executor = new MeasurementEndpointExecutor(client);
 
         Router router = Router.router(vertx);
         createServer(future, router);
 
         setupRootUrlHandler(router);
         setupMeasurementUrlHandlers(router);
+    }
+
+    private void initCassandraDbConnection() {
+        CassandraClientOptions options = new CassandraClientOptions()
+                .setPort(config().getInteger("cassandra.port", 9142))
+                .setKeyspace(config().getString("keyspace"))
+                .addContactPoint(config().getString("node1.address"))
+                .addContactPoint(config().getString("node2.address"))
+                .addContactPoint(config().getString("node3.address"));
+
+        client = CassandraClient.createShared(vertx, options);
     }
 
     private void createServer(Future<Void> future, Router router) {
@@ -44,8 +59,8 @@ public class Main extends AbstractVerticle {
 
     private void setupMeasurementUrlHandlers(Router router) {
         router.post("/measurement").handler(executor::addMeasurement);
-        router.get("/measurement/:id").handler(executor::getMeasurement);
+        router.get("/measurement/:timestamp").handler(executor::getMeasurement);
         router.put("/measurement").handler(executor::updateMeasurement);
-        router.delete("/measurement/:id").handler(executor::removeMeasurement);
+        router.delete("/measurement/:timestamp").handler(executor::removeMeasurement);
     }
 }
