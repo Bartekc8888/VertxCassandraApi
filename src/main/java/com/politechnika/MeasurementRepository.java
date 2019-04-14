@@ -1,6 +1,8 @@
 package com.politechnika;
 
 import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.PreparedStatement;
@@ -8,24 +10,27 @@ import com.datastax.driver.core.Row;
 import io.vertx.cassandra.CassandraClient;
 import io.vertx.cassandra.ResultSet;
 import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 
 public class MeasurementRepository {
     private CassandraClient client;
-    private String insertQuery = "INSERT INTO measurements (longitude, latitude, time, altitude, " +
+    private String insertQuery = "INSERT INTO measurements (uniqueId, longitude, latitude, time, altitude, " +
                                  "pressure, co2, airDensity, surfaceTemperature) " +
-                                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                                 "VALUES (now(), ?, ?, ?, ?, ?, ?, ?, ?)";
     private String updateQuery = "UPDATE measurements SET longitude = ?, latitude = ?, time = ?, altitude = ?, " +
                                  "pressure = ?, co2 = ?, airDensity = ?, surfaceTemperature = ? " +
-                                 "WHERE time = (?)";
+                                 "WHERE uniqueId IN (?)";
     private String selectQuery = "SELECT * FROM measurements " +
-                                 "WHERE time = (?)";
+                                 "WHERE time = ? ALLOW FILTERING";
+    private String selectIdQuery = "SELECT uniqueId FROM measurements WHERE time = ? ALLOW FILTERING";
     private String deleteQuery = "DELETE FROM measurements " +
-                                 "WHERE time = (?)";
+                                 "WHERE uniqueId IN (?)";
 
     private PreparedStatement preparedInsertStatement;
     private PreparedStatement preparedUpdateStatement;
     private PreparedStatement preparedGetStatement;
+    private PreparedStatement preparedGetIdStatement;
     private PreparedStatement preparedDeleteStatement;
 
     public MeasurementRepository(CassandraClient client) {
@@ -43,11 +48,26 @@ public class MeasurementRepository {
     }
 
     public void update(MeasurementDto measurementDto, Handler<AsyncResult<ResultSet>> resultHandler) {
-        client.execute(bindUpdateStatement(measurementDto, measurementDto.getTime()), resultHandler);
+        client.execute(bindUpdateStatement(measurementDto), resultHandler);
     }
 
     public void delete(String timestamp, Handler<AsyncResult<ResultSet>> resultHandler) {
-        client.execute(preparedDeleteStatement.bind(timestamp), resultHandler);
+        getId(timestamp, result -> {
+            if (result.succeeded()) {
+                List<UUID> listOfIds = result.result().stream().map(row -> row.getUUID(0)).collect(Collectors.toList());
+                client.execute(preparedDeleteStatement.bind(listOfIds), resultHandler);
+            } else {
+                resultHandler.handle(Future.failedFuture(new Throwable("Not found")));
+            }
+        });
+    }
+
+    public void delete(UUID id, Handler<AsyncResult<ResultSet>> resultHandler) {
+        client.execute(preparedDeleteStatement.bind(id), resultHandler);
+    }
+
+    public void getId(String timestamp, Handler<AsyncResult<List<Row>>> resultHandler) {
+        client.executeWithFullFetch(preparedGetIdStatement.bind(timestamp), resultHandler);
     }
 
     private void prepareStatements() {
@@ -75,6 +95,14 @@ public class MeasurementRepository {
             }
         });
 
+        client.prepare(selectIdQuery, preparedStatementResult -> {
+            if (preparedStatementResult.succeeded()) {
+                preparedGetIdStatement = preparedStatementResult.result();
+            } else {
+                preparedStatementResult.cause().printStackTrace();
+            }
+        });
+
         client.prepare(deleteQuery, preparedStatementResult -> {
             if (preparedStatementResult.succeeded()) {
                 preparedDeleteStatement = preparedStatementResult.result();
@@ -95,7 +123,7 @@ public class MeasurementRepository {
                                             measurementDto.getSurfaceTemperature());
     }
 
-    private BoundStatement bindUpdateStatement(MeasurementDto measurementDto, String timestamp) {
+    private BoundStatement bindUpdateStatement(MeasurementDto measurementDto) {
         return preparedUpdateStatement.bind(measurementDto.getLongitude(),
                                             measurementDto.getLatitude(),
                                             measurementDto.getTime(),
@@ -104,6 +132,6 @@ public class MeasurementRepository {
                                             measurementDto.getCo2(),
                                             measurementDto.getAirDensity(),
                                             measurementDto.getSurfaceTemperature(),
-                                            timestamp);
+                                            measurementDto.getUniqueId());
     }
 }

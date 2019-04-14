@@ -6,6 +6,7 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.handler.BodyHandler;
 
 
 public class Main extends AbstractVerticle {
@@ -18,6 +19,7 @@ public class Main extends AbstractVerticle {
         executor = new MeasurementEndpointExecutor(client);
 
         Router router = Router.router(vertx);
+        router.route().handler(BodyHandler.create());
         createServer(future, router);
 
         setupRootUrlHandler(router);
@@ -26,11 +28,9 @@ public class Main extends AbstractVerticle {
 
     private void initCassandraDbConnection() {
         CassandraClientOptions options = new CassandraClientOptions()
-                .setPort(config().getInteger("cassandra.port", 9142))
-                .setKeyspace(config().getString("keyspace"))
-                .addContactPoint(config().getString("node1.address", ""))
-                .addContactPoint(config().getString("node2.address", ""))
-                .addContactPoint(config().getString("node3.address", ""));
+                .setPort(config().getInteger("cassandra.port", 9042))
+                .setKeyspace(config().getString("keyspace", "measurements_db"))
+                .addContactPoint(config().getString("node1.address", "192.168.0.101"));
 
         client = CassandraClient.createShared(vertx, options);
     }
@@ -60,7 +60,9 @@ public class Main extends AbstractVerticle {
     private void setupMeasurementUrlHandlers(Router router) {
         router.post("/measurement").handler(executor::addMeasurement);
         router.get("/measurement/:timestamp").handler(executor::getMeasurement);
+        router.get("/measurement/id/byTimestamp/:timestamp").handler(executor::getMeasurementIdByTimestamp);
         router.put("/measurement").handler(executor::updateMeasurement);
         router.delete("/measurement/:timestamp").handler(executor::removeMeasurement);
+        router.delete("/measurement/id/:uuid").handler(executor::removeMeasurementById);
     }
 }

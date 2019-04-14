@@ -1,6 +1,9 @@
 package com.politechnika;
 
+import java.util.UUID;
+
 public class MeasurementDto {
+    private UUID uniqueId;
     private double longitude;
     private double latitude;
     private String time;
@@ -10,8 +13,10 @@ public class MeasurementDto {
     private double airDensity;
     private float surfaceTemperature;
 
-    @java.beans.ConstructorProperties({"longitude", "latitude", "time", "altitude", "pressure", "co2", "airDensity", "surfaceTemperature"})
-    public MeasurementDto(double longitude, double latitude, String time, double altitude, double pressure, double co2, double airDensity, float surfaceTemperature) {
+    @java.beans.ConstructorProperties({"uniqueId", "longitude", "latitude", "time", "altitude", "pressure", "co2", "airDensity", "surfaceTemperature"})
+    public MeasurementDto(UUID uniqueId, double longitude, double latitude, String time, double altitude,
+                          double pressure, double co2, double airDensity, float surfaceTemperature) {
+        this.uniqueId = uniqueId;
         this.longitude = longitude;
         this.latitude = latitude;
         this.time = time;
@@ -23,6 +28,14 @@ public class MeasurementDto {
     }
 
     public MeasurementDto() {
+    }
+
+    public UUID getUniqueId() {
+        return uniqueId;
+    }
+
+    public void setUniqueId(UUID uniqueId) {
+        this.uniqueId = uniqueId;
     }
 
     public double getLongitude() {

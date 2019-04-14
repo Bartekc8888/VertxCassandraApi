@@ -1,5 +1,6 @@
 {
   "http.port" : 8082,
   "cassandra.port" : 9142,
-  "keyspace" : "custom_keyspace"
+  "keyspace" : "measurements_db",
+  "node1.address" : "192.168.0.101"
 }
